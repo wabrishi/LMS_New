@@ -1,0 +1,119 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Online Learning Management System (LMS) API",
+    "version": "1.0.0",
+    "description": "Production-grade RESTful API specification for multi-tenant LMS with Role-Based Access Control (RBAC)."
+  },
+  "servers": [
+    { "url": "https://api.lmsplatform.com/api/v1", "description": "Production API" },
+    { "url": "http://localhost:3000/api/v1", "description": "Local Development" }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "summary": "User Authentication & JWT Token Issuance",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "example": "admin@institute.edu" },
+                  "password": { "type": "string", "example": "SuperSecurePass123!" }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": { "type": "string" },
+                    "refreshToken": { "type": "string" },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "email": { "type": "string" },
+                        "role": { "type": "string", "enum": ["SUPER_ADMIN", "INSTITUTE_ADMIN", "FACULTY", "STUDENT"] },
+                        "firstName": { "type": "string" },
+                        "lastName": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/students": {
+      "get": {
+        "summary": "List Students with Search & Pagination",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated list of students" }
+        }
+      },
+      "post": {
+        "summary": "Register New Student",
+        "responses": { "201": { "description": "Student created successfully" } }
+      }
+    },
+    "/courses": {
+      "get": {
+        "summary": "Get Published & Active Courses Catalog",
+        "responses": { "200": { "description": "List of courses with instructor details" } }
+      },
+      "post": {
+        "summary": "Create New Course",
+        "responses": { "201": { "description": "Course created" } }
+      }
+    },
+    "/live-classes": {
+      "get": {
+        "summary": "List Live Classes Schedule",
+        "responses": { "200": { "description": "Schedule with Zoom/Meet launch URLs" } }
+      },
+      "post": {
+        "summary": "Schedule New Live Class Meeting",
+        "responses": { "201": { "description": "Live class scheduled" } }
+      }
+    },
+    "/assignments/{id}/submit": {
+      "post": {
+        "summary": "Submit Assignment Answer File",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Submission uploaded successfully" } }
+      }
+    },
+    "/quizzes/{id}/submit": {
+      "post": {
+        "summary": "Submit Quiz Attempt Answers",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Quiz auto-graded with detailed results" } }
+      }
+    },
+    "/certificates/verify/{certificateNumber}": {
+      "get": {
+        "summary": "Public Verification of Certificate Integrity",
+        "parameters": [{ "name": "certificateNumber", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Certificate validity & metadata details" } }
+      }
+    }
+  }
+}
