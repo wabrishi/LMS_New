@@ -1,19 +1,15 @@
 const getApiBaseUrl = (): string => {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
-  }
-  // On production domains, automatically use relative path '/api/v1'
+  // If running on a live domain (like Hostinger), ALWAYS use relative path '/api/v1'
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
     return '/api/v1';
   }
-  return 'http://localhost:5000/api/v1';
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 };
-
-const API_BASE_URL = getApiBaseUrl();
 
 export async function checkServerStatus(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE_URL}/health`, { method: 'GET' });
+    const baseUrl = getApiBaseUrl();
+    const res = await fetch(`${baseUrl}/health`, { method: 'GET' });
     if (res.ok) {
       const data = await res.json();
       return data.status === 'UP';
@@ -25,6 +21,7 @@ export async function checkServerStatus(): Promise<boolean> {
 }
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const baseUrl = getApiBaseUrl();
   const token = localStorage.getItem('lms_access_token');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -35,7 +32,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
     headers,
   });
