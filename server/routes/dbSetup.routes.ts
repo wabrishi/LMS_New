@@ -16,27 +16,27 @@ router.get('/current', (_req, res) => {
 
   if (dbUrl.startsWith('mysql://')) {
     try {
-      const firstColon = dbUrl.indexOf(':', 8);
-      const lastAt = dbUrl.lastIndexOf('@');
-      const lastSlash = dbUrl.lastIndexOf('/');
-
-      if (firstColon !== -1 && lastAt !== -1 && lastSlash !== -1 && firstColon < lastAt && lastAt < lastSlash) {
-        username = dbUrl.substring(8, firstColon);
-        password = decodeURIComponent(dbUrl.substring(firstColon + 1, lastAt));
-
-        const hostPort = dbUrl.substring(lastAt + 1, lastSlash);
-        if (hostPort.includes(':')) {
-          const [h, p] = hostPort.split(':');
-          host = h || 'localhost';
-          port = p || '3306';
-        } else {
-          host = hostPort || 'localhost';
-        }
-
-        database = dbUrl.substring(lastSlash + 1).split('?')[0];
-      }
+      const parsed = new URL(dbUrl);
+      username = decodeURIComponent(parsed.username || '');
+      password = decodeURIComponent(parsed.password || '');
+      host = parsed.hostname || 'localhost';
+      port = parsed.port || '3306';
+      database = decodeURIComponent(parsed.pathname ? parsed.pathname.replace(/^\//, '') : '');
     } catch {
-      // Return defaults if parse fails
+      // Regex fallback if URL constructor throws on unencoded characters
+      const match = dbUrl.match(/^mysql:\/\/([^:]+):([^@]+)@([^:\/]+)(?::(\d+))?\/(.+)$/);
+      if (match) {
+        username = decodeURIComponent(match[1]);
+        password = decodeURIComponent(match[2]);
+        host = match[3];
+        port = match[4] || '3306';
+        database = match[5].split('?')[0];
+      }
+    }
+
+    // Clean up accidental leading slash in password if present
+    if (password.startsWith('/')) {
+      password = password.slice(1);
     }
   }
 
@@ -65,7 +65,7 @@ router.post('/test', async (req, res) => {
   }
 
   // Build candidate DATABASE_URL
-  const rawPassword = password || '';
+  const rawPassword = (password || '').replace(/^\//, ''); // Clean leading slash if pasted
   const encodedPassword = encodeURIComponent(rawPassword);
   const candidateUrl = `mysql://${username}:${encodedPassword}@${host}:${port}/${database}`;
 

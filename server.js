@@ -7,14 +7,44 @@ import fs2 from "fs";
 
 // server/config/db.ts
 import { PrismaClient } from "@prisma/client";
-function getDatabaseUrl() {
-  const url = process.env.DATABASE_URL;
+function sanitizeDatabaseUrl(url) {
   if (!url || url.includes("YOUR_HOSTINGER_DB_PASSWORD")) {
     return process.env.SQLITE_URL || "file:./dev.db";
   }
-  return url.trim();
+  const trimmed = url.trim();
+  if (!trimmed.startsWith("mysql://")) {
+    return trimmed;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    const username = decodeURIComponent(parsed.username || "");
+    let password = decodeURIComponent(parsed.password || "");
+    const host = parsed.hostname || "localhost";
+    const port = parsed.port || "3306";
+    const database = decodeURIComponent(parsed.pathname ? parsed.pathname.replace(/^\//, "") : "");
+    if (password.startsWith("/")) {
+      password = password.slice(1);
+    }
+    const encodedPassword = encodeURIComponent(password);
+    return `mysql://${username}:${encodedPassword}@${host}:${port}/${database}`;
+  } catch {
+    const match = trimmed.match(/^mysql:\/\/([^:]+):([^@]+)@([^:\/]+)(?::(\d+))?\/(.+)$/);
+    if (match) {
+      const username = decodeURIComponent(match[1]);
+      let password = decodeURIComponent(match[2]);
+      if (password.startsWith("/")) {
+        password = password.slice(1);
+      }
+      const host = match[3];
+      const port = match[4] || "3306";
+      const database = match[5].split("?")[0];
+      const encodedPassword = encodeURIComponent(password);
+      return `mysql://${username}:${encodedPassword}@${host}:${port}/${database}`;
+    }
+  }
+  return trimmed;
 }
-var dbUrl = getDatabaseUrl();
+var dbUrl = sanitizeDatabaseUrl(process.env.DATABASE_URL);
 var prisma = new PrismaClient({
   datasources: {
     db: {
@@ -885,23 +915,24 @@ router12.get("/current", (_req, res) => {
   let password = "";
   if (dbUrl2.startsWith("mysql://")) {
     try {
-      const firstColon = dbUrl2.indexOf(":", 8);
-      const lastAt = dbUrl2.lastIndexOf("@");
-      const lastSlash = dbUrl2.lastIndexOf("/");
-      if (firstColon !== -1 && lastAt !== -1 && lastSlash !== -1 && firstColon < lastAt && lastAt < lastSlash) {
-        username = dbUrl2.substring(8, firstColon);
-        password = decodeURIComponent(dbUrl2.substring(firstColon + 1, lastAt));
-        const hostPort = dbUrl2.substring(lastAt + 1, lastSlash);
-        if (hostPort.includes(":")) {
-          const [h, p] = hostPort.split(":");
-          host = h || "localhost";
-          port = p || "3306";
-        } else {
-          host = hostPort || "localhost";
-        }
-        database = dbUrl2.substring(lastSlash + 1).split("?")[0];
-      }
+      const parsed = new URL(dbUrl2);
+      username = decodeURIComponent(parsed.username || "");
+      password = decodeURIComponent(parsed.password || "");
+      host = parsed.hostname || "localhost";
+      port = parsed.port || "3306";
+      database = decodeURIComponent(parsed.pathname ? parsed.pathname.replace(/^\//, "") : "");
     } catch {
+      const match = dbUrl2.match(/^mysql:\/\/([^:]+):([^@]+)@([^:\/]+)(?::(\d+))?\/(.+)$/);
+      if (match) {
+        username = decodeURIComponent(match[1]);
+        password = decodeURIComponent(match[2]);
+        host = match[3];
+        port = match[4] || "3306";
+        database = match[5].split("?")[0];
+      }
+    }
+    if (password.startsWith("/")) {
+      password = password.slice(1);
     }
   }
   res.json({
@@ -924,7 +955,7 @@ router12.post("/test", async (req, res) => {
       message: "Database Name and Username are required."
     });
   }
-  const rawPassword = password || "";
+  const rawPassword = (password || "").replace(/^\//, "");
   const encodedPassword = encodeURIComponent(rawPassword);
   const candidateUrl = `mysql://${username}:${encodedPassword}@${host}:${port}/${database}`;
   let testClient = null;
