@@ -918,8 +918,10 @@ if (fs.existsSync(distPath)) {
   });
 }
 app.use(errorHandler);
-app.listen(PORT, () => {
-  console.log(`\u{1F680} Express REST API server running on port ${PORT}`);
+var isPassenger = typeof global.PhusionPassenger !== "undefined";
+var listenTarget = isPassenger ? "passenger" : PORT;
+app.listen(listenTarget, () => {
+  console.log(`\u{1F680} Express REST API server running on ${listenTarget}`);
   connectDB();
 });
 var index_default = app;

@@ -65,10 +65,12 @@ if (fs.existsSync(distPath)) {
 // Centralized Error Handler
 app.use(errorHandler);
 
-// Start server immediately to bind PORT for Hostinger reverse proxy
-app.listen(PORT, () => {
-  console.log(`🚀 Express REST API server running on port ${PORT}`);
-  // Connect to DB asynchronously
+// Phusion Passenger / Hostinger NGINX reverse proxy compatible listener
+const isPassenger = typeof (global as any).PhusionPassenger !== 'undefined';
+const listenTarget = isPassenger ? 'passenger' : PORT;
+
+app.listen(listenTarget as any, () => {
+  console.log(`🚀 Express REST API server running on ${listenTarget}`);
   connectDB();
 });
 
