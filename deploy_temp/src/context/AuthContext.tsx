@@ -218,7 +218,6 @@ const defaultUsers: Record<UserRole, User> = {
 interface AuthContextType {
   role: UserRole;
   setRole: (role: UserRole) => void;
-  setAuthUser: (role: UserRole, user?: any) => void;
   isAuthenticated: boolean;
   login: (role: UserRole, email: string) => void;
   logout: () => void;
@@ -242,14 +241,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRoleState] = useState<UserRole>(() => {
     const savedRole = localStorage.getItem('lms_auth_role') as UserRole;
     return savedRole && defaultUsers[savedRole] ? savedRole : 'SUPER_ADMIN';
-  });
-
-  const [customUser, setCustomUserState] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('lms_auth_user');
-    if (savedUser) {
-      try { return JSON.parse(savedUser); } catch { return null; }
-    }
-    return null;
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -285,19 +276,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setActiveModule = (moduleName: string) => {
     setActiveModuleState(moduleName);
     localStorage.setItem('lms_active_module', moduleName);
-  };
-
-  const setAuthUser = (newRole: UserRole, userObj?: any) => {
-    setRoleState(newRole);
-    setIsAuthenticated(true);
-    if (userObj) {
-      setCustomUserState(userObj);
-    }
-    localStorage.setItem('lms_auth_role', newRole);
-    const savedModule = localStorage.getItem('lms_active_module');
-    if (!savedModule) {
-      setActiveModule('Dashboard');
-    }
   };
 
   const login = async (newRole: UserRole, userEmail: string) => {
@@ -336,7 +314,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('lms_auth_role');
     localStorage.removeItem('lms_active_module');
     setIsAuthenticated(false);
-    setCustomUserState(null);
     setActiveModuleState('Dashboard');
   };
 
@@ -368,14 +345,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return Boolean(rule[roleKey]?.[permissionType]);
   };
 
-  const currentUser = customUser || defaultUsers[role];
+  const currentUser = defaultUsers[role];
 
   return (
     <AuthContext.Provider
       value={{
         role,
         setRole,
-        setAuthUser,
         isAuthenticated,
         login,
         logout,
