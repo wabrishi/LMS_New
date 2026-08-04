@@ -13,10 +13,14 @@ function sanitizeDatabaseUrl(url) {
   }
   try {
     if (url.startsWith("mysql://")) {
-      const match = url.match(/^mysql:\/\/([^:]+):([^@]+)@(.+)$/);
-      if (match) {
-        const [, user, password, rest] = match;
-        const encodedPassword = encodeURIComponent(decodeURIComponent(password));
+      const firstColon = url.indexOf(":", 8);
+      const lastAt = url.lastIndexOf("@");
+      if (firstColon !== -1 && lastAt !== -1 && firstColon < lastAt) {
+        const user = url.substring(8, firstColon);
+        const rawPassword = url.substring(firstColon + 1, lastAt);
+        const rest = url.substring(lastAt + 1);
+        const cleanPassword = decodeURIComponent(rawPassword);
+        const encodedPassword = encodeURIComponent(cleanPassword);
         return `mysql://${user}:${encodedPassword}@${rest}`;
       }
     }
