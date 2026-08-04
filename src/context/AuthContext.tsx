@@ -271,11 +271,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return defaultPermissions;
   });
 
-  const [isDbConnected, setIsDbConnected] = useState<boolean>(false);
-
   useEffect(() => {
     apiClient.checkHealth().then((connected) => {
-      setIsDbConnected(connected);
       if (connected) {
         console.log('✅ Connected to Express REST API with MySQL Database');
       }
@@ -300,28 +297,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (newRole: UserRole, userEmail: string) => {
-    setRoleState(newRole);
-    setIsAuthenticated(true);
-    localStorage.setItem('lms_auth_role', newRole);
-    localStorage.setItem('lms_auth_token', `jwt_session_token_${Date.now()}`);
-    localStorage.setItem('lms_auth_user', JSON.stringify({ email: userEmail, role: newRole }));
-    
-    // Attempt backend API login if MySQL server is online
+  const login = async (_newRole: UserRole, userEmail: string) => {
     try {
-      if (isDbConnected) {
-        const response = await apiClient.login({ email: userEmail, password: 'SuperSecurePass123!' });
+      const response = await apiClient.login({ email: userEmail, password: 'SuperSecurePass123!' });
+      if (response.success && response.user) {
+        setAuthUser(response.user.role as UserRole, response.user);
         if (response.accessToken) {
           localStorage.setItem('lms_access_token', response.accessToken);
         }
       }
     } catch (err) {
-      console.warn('Backend API login fallback to local session state');
-    }
-
-    const savedModule = localStorage.getItem('lms_active_module');
-    if (!savedModule) {
-      setActiveModule('Dashboard');
+      console.error('Database API login failed:', err);
+      logout();
     }
   };
 

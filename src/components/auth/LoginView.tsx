@@ -33,8 +33,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       title: 'Super Admin',
       email: 'sysadmin@yourdomain.com',
       password: 'ProdAdminSecure#2026!',
-      devEmail: 'admin@institute.edu',
-      devPassword: 'SuperSecurePass123!',
       icon: <ShieldCheck className="w-5 h-5 text-purple-600" />,
       desc: 'Global system configuration & RBAC permissions matrix',
       badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
@@ -44,8 +42,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       title: 'Faculty / Trainer',
       email: 'head.faculty@yourdomain.com',
       password: 'FacultyProdSecure#2026!',
-      devEmail: 'faculty@institute.edu',
-      devPassword: 'SuperSecurePass123!',
       icon: <BookOpen className="w-5 h-5 text-emerald-600" />,
       desc: 'Live classrooms, curriculum builder & rubric grading',
       badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -55,8 +51,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       title: 'Student Portal',
       email: 'student.demo@yourdomain.com',
       password: 'StudentProdSecure#2026!',
-      devEmail: 'student@institute.edu',
-      devPassword: 'SuperSecurePass123!',
       icon: <GraduationCap className="w-5 h-5 text-amber-600" />,
       desc: 'Video lectures, timed examinations & certificates',
       badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'
@@ -75,7 +69,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     setErrorMessage('');
 
     try {
-      // Authenticate directly against Express REST API (MySQL DB)
+      // Authenticate directly against Database API
       const res = await apiClient.login({ email, password });
 
       if (res.success && res.accessToken && res.user) {
@@ -93,30 +87,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         setIsLoading(false);
       }
     } catch (err: any) {
-      console.warn('API Auth failed, attempting local credentials match:', err.message);
-
-      // Fallback matching for local offline development mode
-      let targetRole: UserRole | null = selectedQuickRole;
-      if (email === 'admin@institute.edu' && password === 'SuperSecurePass123!') targetRole = 'SUPER_ADMIN';
-      else if (email === 'faculty@institute.edu' && password === 'SuperSecurePass123!') targetRole = 'FACULTY';
-      else if (email === 'student@institute.edu' && password === 'SuperSecurePass123!') targetRole = 'STUDENT';
-      else if (email === 'sysadmin@yourdomain.com' && password === 'ProdAdminSecure#2026!') targetRole = 'SUPER_ADMIN';
-      else if (email === 'head.faculty@yourdomain.com' && password === 'FacultyProdSecure#2026!') targetRole = 'FACULTY';
-      else if (email === 'student.demo@yourdomain.com' && password === 'StudentProdSecure#2026!') targetRole = 'STUDENT';
-
-      if (targetRole) {
-        const dummyUser = { email, role: targetRole, firstName: 'Authenticated', lastName: 'User' };
-        localStorage.setItem('lms_auth_token', `jwt_token_${Date.now()}`);
-        localStorage.setItem('lms_auth_role', targetRole);
-        localStorage.setItem('lms_auth_user', JSON.stringify(dummyUser));
-
-        setAuthUser(targetRole, dummyUser as any);
-        setIsLoading(false);
-        if (onLoginSuccess) onLoginSuccess();
-      } else {
-        setErrorMessage(err.message || 'Invalid email address or password. Please try again.');
-        setIsLoading(false);
-      }
+      setErrorMessage(err.message || 'Authentication failed. Invalid email address or password.');
+      setIsLoading(false);
     }
   };
 
@@ -133,21 +105,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         </div>
         <h2 className="text-3xl font-extrabold text-white tracking-tight">EduPulse LMS Studio</h2>
         <p className="mt-2 text-xs text-slate-400">
-          Enterprise Learning Management System &bull; MySQL Authentication Active
+          Enterprise Learning Management System &bull; Database Authentication Active
         </p>
       </div>
 
       {/* Main Login Card */}
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-xl relative z-10 px-4">
         <div className="bg-white py-8 px-6 sm:px-10 rounded-3xl shadow-dropdown border border-gray-100">
-          {/* MySQL Status Pill */}
+          {/* Database Authentication Status Pill */}
           <div className="mb-6 p-3 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-between text-xs">
             <div className="flex items-center gap-2 text-blue-900 font-semibold">
               <Database className="w-4 h-4 text-blue-600" />
-              <span>Database Authentication Server</span>
+              <span>Strict Database Authentication</span>
             </div>
             <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-md text-[10px] flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> ACTIVE
+              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> ENFORCED
             </span>
           </div>
 
@@ -195,7 +167,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-200 shadow-md shadow-blue-500/25 flex items-center justify-center gap-2"
             >
               {isLoading ? (
-                <span>Authenticating with MySQL Database...</span>
+                <span>Authenticating with Database...</span>
               ) : (
                 <>
                   <span>Sign In To Platform</span>
@@ -205,10 +177,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
             </button>
           </form>
 
-          {/* Quick Demo Role Selector */}
+          {/* Quick Production Preset Account Auto-Fill */}
           <div className="mt-8 pt-6 border-t border-gray-100">
             <div className="text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-4">
-              Select Production Account to Auto-fill Credentials
+              Auto-fill Production Account Credentials
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {quickLogins.map((item) => (
