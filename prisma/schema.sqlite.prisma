@@ -1,0 +1,475 @@
+// Prisma Schema for Local Development using SQLite Database
+
+datasource db {
+  provider = "sqlite"
+  url      = env("SQLITE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  INSTITUTE_ADMIN
+  FACULTY
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum LiveClassPlatform {
+  ZOOM
+  GOOGLE_MEET
+  MS_TEAMS
+  JITSI
+}
+
+enum ContentType {
+  VIDEO
+  PDF
+  DOCX
+  PPT
+  ZIP
+  LINK
+}
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  FILL_BLANK
+  ESSAY
+  CODING
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum InvoiceStatus {
+  PAID
+  PENDING
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  STRIPE
+  BANK_TRANSFER
+  CASH
+}
+
+model Institute {
+  id          String     @id @default(uuid())
+  name        String
+  code        String     @unique
+  logoUrl     String?
+  domain      String?
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  users       User[]
+  courses     Course[]
+  batches     Batch[]
+  invoices    FeeInvoice[]
+
+  @@map("institutes")
+}
+
+model User {
+  id             String     @id @default(uuid())
+  instituteId    String
+  email          String     @unique
+  passwordHash   String
+  role           Role
+  firstName      String
+  lastName       String
+  phone          String?
+  avatarUrl      String?
+  status         UserStatus @default(ACTIVE)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  institute      Institute  @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  studentProfile StudentProfile?
+  facultyProfile FacultyProfile?
+
+  createdCourses Course[]           @relation("CourseInstructor")
+  forumPosts     ForumPost[]
+  forumReplies   ForumReply[]
+  sentMessages     Message[]        @relation("SentMessages")
+  receivedMessages Message[]        @relation("ReceivedMessages")
+  auditLogs      AuditLog[]
+
+  @@index([instituteId])
+  @@index([role])
+  @@map("users")
+}
+
+model StudentProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  rollNumber     String   @unique
+  admissionDate  DateTime @default(now())
+  parentName     String?
+  parentContact  String?
+  guardianDetail String?
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  enrollments    BatchEnrollment[]
+  submissions    AssignmentSubmission[]
+  quizAttempts   QuizAttempt[]
+  attendance     AttendanceRecord[]
+  invoices       FeeInvoice[]
+  certificates   Certificate[]
+
+  @@map("student_profiles")
+}
+
+model FacultyProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  employeeId     String   @unique
+  qualification  String
+  designation    String
+  specialization String
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  assignedBatches Batch[]
+
+  @@map("faculty_profiles")
+}
+
+model Course {
+  id             String   @id @default(uuid())
+  instituteId    String
+  instructorId   String
+  title          String
+  category       String
+  thumbnailUrl   String?
+  price          Float    @default(0.0)
+  durationHours  Int      @default(0)
+  description    String
+  isPublished    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  institute      Institute      @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  instructor     User           @relation("CourseInstructor", fields: [instructorId], references: [id])
+  modules        CourseModule[]
+  batches        Batch[]
+  quizzes        Quiz[]
+  certificates   Certificate[]
+
+  @@index([instituteId])
+  @@map("courses")
+}
+
+model CourseModule {
+  id          String   @id @default(uuid())
+  courseId    String
+  title       String
+  orderIndex  Int
+  createdAt   DateTime @default(now())
+
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons     Lesson[]
+
+  @@map("course_modules")
+}
+
+model Lesson {
+  id           String      @id @default(uuid())
+  moduleId     String
+  title        String
+  contentType  ContentType
+  contentUrl   String
+  durationMins Int         @default(0)
+  orderIndex   Int
+
+  module       CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@map("lessons")
+}
+
+model Batch {
+  id          String   @id @default(uuid())
+  instituteId String
+  courseId    String
+  facultyId   String?
+  name        String
+  capacity    Int      @default(50)
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+
+  institute   Institute       @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  course      Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  faculty     FacultyProfile? @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+
+  enrollments BatchEnrollment[]
+  liveClasses LiveClass[]
+  assignments Assignment[]
+  attendance  AttendanceRecord[]
+
+  @@map("batches")
+}
+
+model BatchEnrollment {
+  id               String   @id @default(uuid())
+  batchId          String
+  studentId        String
+  enrolledAt       DateTime @default(now())
+  completionStatus String   @default("IN_PROGRESS")
+
+  batch            Batch          @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  student          StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, studentId])
+  @@map("batch_enrollments")
+}
+
+model LiveClass {
+  id              String            @id @default(uuid())
+  batchId         String
+  title           String
+  platform        LiveClassPlatform @default(ZOOM)
+  meetingLink     String
+  meetingId       String?
+  passcode        String?
+  scheduledAt     DateTime
+  durationMinutes Int               @default(60)
+  recordingUrl    String?
+  isLive          Boolean           @default(false)
+
+  batch           Batch             @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@map("live_classes")
+}
+
+model StudyMaterial {
+  id            String      @id @default(uuid())
+  courseId      String
+  title         String
+  fileType      ContentType
+  fileUrl       String
+  fileSizeBytes Int
+  folderName    String      @default("General")
+  uploadedAt    DateTime    @default(now())
+
+  @@map("study_materials")
+}
+
+model Assignment {
+  id            String   @id @default(uuid())
+  batchId       String
+  title         String
+  description   String
+  maxMarks      Int      @default(100)
+  dueDate       DateTime
+  attachmentUrl String?
+  createdAt     DateTime @default(now())
+
+  batch         Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  submissions   AssignmentSubmission[]
+
+  @@map("assignments")
+}
+
+model AssignmentSubmission {
+  id           String     @id @default(uuid())
+  assignmentId String
+  studentId    String
+  submittedAt  DateTime   @default(now())
+  fileUrl      String
+  marks        Float?
+  feedback     String?
+  gradedAt     DateTime?
+
+  assignment   Assignment     @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@map("assignment_submissions")
+}
+
+model Quiz {
+  id                String   @id @default(uuid())
+  courseId          String
+  title             String
+  durationMinutes   Int      @default(30)
+  totalMarks        Int      @default(100)
+  passingMarks      Int      @default(40)
+  isNegativeMarking Boolean  @default(false)
+  negativeMark      Float    @default(0.0)
+  createdAt         DateTime @default(now())
+
+  course            Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  questions         QuizQuestion[]
+  attempts          QuizAttempt[]
+
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id            String       @id @default(uuid())
+  quizId        String
+  questionText  String
+  type          QuestionType
+  optionsJson   String?
+  correctAnswer String
+  marks         Float        @default(1.0)
+  orderIndex    Int
+
+  quiz          Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_questions")
+}
+
+model QuizAttempt {
+  id          String   @id @default(uuid())
+  quizId      String
+  studentId   String
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  score       Float?
+  passed      Boolean?
+
+  quiz        Quiz           @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_attempts")
+}
+
+model AttendanceRecord {
+  id        String           @id @default(uuid())
+  batchId   String
+  studentId String
+  date      DateTime
+  status    AttendanceStatus @default(PRESENT)
+  remarks   String?
+
+  batch     Batch          @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, studentId, date])
+  @@map("attendance_records")
+}
+
+model FeeInvoice {
+  id            String        @id @default(uuid())
+  instituteId   String
+  studentId     String
+  invoiceNumber String        @unique
+  amount        Float
+  dueDate       DateTime
+  status        InvoiceStatus @default(PENDING)
+  description   String
+  createdAt     DateTime      @default(now())
+
+  institute     Institute      @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  student       StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  payments      FeePayment[]
+
+  @@map("fee_invoices")
+}
+
+model FeePayment {
+  id            String        @id @default(uuid())
+  invoiceId     String
+  amountPaid    Float
+  paymentMethod PaymentMethod
+  transactionId String        @unique
+  paidAt        DateTime      @default(now())
+
+  invoice       FeeInvoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("fee_payments")
+}
+
+model Certificate {
+  id                String   @id @default(uuid())
+  studentId         String
+  courseId          String
+  certificateNumber String   @unique
+  issuedAt          DateTime @default(now())
+  qrCodeUrl         String
+  pdfUrl            String
+
+  student           StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course            Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("certificates")
+}
+
+model ForumPost {
+  id        String   @id @default(uuid())
+  authorId  String
+  title     String
+  content   String
+  tags      String
+  upvotes   Int      @default(0)
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  author    User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replies   ForumReply[]
+
+  @@map("forum_posts")
+}
+
+model ForumReply {
+  id        String   @id @default(uuid())
+  postId    String
+  authorId  String
+  content   String
+  upvotes   Int      @default(0)
+  createdAt DateTime @default(now())
+
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("forum_replies")
+}
+
+model Message {
+  id            String   @id @default(uuid())
+  senderId      String
+  receiverId    String
+  content       String
+  attachmentUrl String?
+  isRead        Boolean  @default(false)
+  sentAt        DateTime @default(now())
+
+  sender        User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver      User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  entity    String
+  entityId  String
+  ipAddress String?
+  timestamp DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}

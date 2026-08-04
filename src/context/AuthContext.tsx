@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { UserRole, User } from '../types';
+import { apiClient } from '../services/apiClient';
 
 export interface PermissionRule {
   id: string;
@@ -261,18 +262,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return defaultPermissions;
   });
 
+  const [isDbConnected, setIsDbConnected] = useState<boolean>(false);
+
+  useEffect(() => {
+    apiClient.checkHealth().then((connected) => {
+      setIsDbConnected(connected);
+      if (connected) {
+        console.log('✅ Connected to Express REST API with MySQL Database');
+      }
+    });
+  }, []);
+
   const setActiveModule = (moduleName: string) => {
     setActiveModuleState(moduleName);
     localStorage.setItem('lms_active_module', moduleName);
   };
 
-  const login = (newRole: UserRole, userEmail: string) => {
+  const login = async (newRole: UserRole, userEmail: string) => {
     setRoleState(newRole);
     setIsAuthenticated(true);
     localStorage.setItem('lms_auth_role', newRole);
     localStorage.setItem('lms_auth_token', `jwt_session_token_${Date.now()}`);
     localStorage.setItem('lms_auth_user', JSON.stringify({ email: userEmail, role: newRole }));
     
+    // Attempt backend API login if MySQL server is online
+    try {
+      if (isDbConnected) {
+        const response = await apiClient.login({ email: userEmail, password: 'SuperSecurePass123!' });
+        if (response.accessToken) {
+          localStorage.setItem('lms_access_token', response.accessToken);
+        }
+      }
+    } catch (err) {
+      console.warn('Backend API login fallback to local session state');
+    }
+
     const savedModule = localStorage.getItem('lms_active_module');
     if (!savedModule) {
       setActiveModule('Dashboard');
@@ -285,6 +309,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem('lms_auth_token');
+    localStorage.removeItem('lms_access_token');
     localStorage.removeItem('lms_auth_user');
     localStorage.removeItem('lms_auth_role');
     localStorage.removeItem('lms_active_module');
