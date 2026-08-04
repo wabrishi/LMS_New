@@ -12,7 +12,8 @@ import {
   Sparkles,
   ShieldCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  Download
 } from 'lucide-react';
 
 interface DatabaseSetupViewProps {
@@ -22,11 +23,12 @@ interface DatabaseSetupViewProps {
 export const DatabaseSetupView: React.FC<DatabaseSetupViewProps> = ({ onBackToLogin }) => {
   const [host, setHost] = useState('localhost');
   const [port, setPort] = useState('3306');
-  const [database, setDatabase] = useState('u105632535_test');
-  const [username, setUsername] = useState('u105632535_test');
+  const [database, setDatabase] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  const [isLoadingCurrent, setIsLoadingCurrent] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; candidateUrl?: string; error?: string } | null>(null);
@@ -43,6 +45,26 @@ export const DatabaseSetupView: React.FC<DatabaseSetupViewProps> = ({ onBackToLo
       return '/api/v1';
     }
     return import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+  };
+
+  const fetchCurrentEnvCredentials = async () => {
+    setIsLoadingCurrent(true);
+    try {
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/db-setup/current`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        if (json.data.host) setHost(json.data.host);
+        if (json.data.port) setPort(json.data.port);
+        if (json.data.database) setDatabase(json.data.database);
+        if (json.data.username) setUsername(json.data.username);
+        if (json.data.password) setPassword(json.data.password);
+      }
+    } catch (err) {
+      console.warn('Could not auto-fetch current .env credentials:', err);
+    } finally {
+      setIsLoadingCurrent(false);
+    }
   };
 
   const checkHealth = async () => {
@@ -75,6 +97,7 @@ export const DatabaseSetupView: React.FC<DatabaseSetupViewProps> = ({ onBackToLo
 
   useEffect(() => {
     checkHealth();
+    fetchCurrentEnvCredentials();
   }, []);
 
   const handleTestConnection = async (e: React.FormEvent) => {
@@ -157,13 +180,22 @@ export const DatabaseSetupView: React.FC<DatabaseSetupViewProps> = ({ onBackToLo
           >
             <ArrowLeft className="w-4 h-4" /> Back to Login
           </button>
-          <button
-            onClick={checkHealth}
-            disabled={currentDbStatus.checking}
-            className="flex items-center gap-2 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${currentDbStatus.checking ? 'animate-spin' : ''}`} /> Refresh Status
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchCurrentEnvCredentials}
+              disabled={isLoadingCurrent}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition"
+            >
+              <Download className={`w-3.5 h-3.5 ${isLoadingCurrent ? 'animate-bounce' : ''}`} /> Auto-Fetch .env
+            </button>
+            <button
+              onClick={checkHealth}
+              disabled={currentDbStatus.checking}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${currentDbStatus.checking ? 'animate-spin' : ''}`} /> Refresh Status
+            </button>
+          </div>
         </div>
 
         <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold mx-auto shadow-xl shadow-blue-500/30 mb-3">
@@ -171,7 +203,7 @@ export const DatabaseSetupView: React.FC<DatabaseSetupViewProps> = ({ onBackToLo
         </div>
         <h2 className="text-2xl font-extrabold text-white">Database Setup & Connection Tester</h2>
         <p className="mt-1 text-xs text-slate-400">
-          Verify and update Hostinger MySQL database credentials dynamically
+          Auto-fetched configuration from server environment (.env)
         </p>
       </div>
 

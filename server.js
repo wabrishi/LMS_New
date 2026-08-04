@@ -876,6 +876,46 @@ import { PrismaClient as PrismaClient2 } from "@prisma/client";
 import fs from "fs";
 import path from "path";
 var router12 = Router12();
+router12.get("/current", (_req, res) => {
+  const dbUrl2 = process.env.DATABASE_URL || "";
+  let host = "localhost";
+  let port = "3306";
+  let database = "";
+  let username = "";
+  let password = "";
+  if (dbUrl2.startsWith("mysql://")) {
+    try {
+      const firstColon = dbUrl2.indexOf(":", 8);
+      const lastAt = dbUrl2.lastIndexOf("@");
+      const lastSlash = dbUrl2.lastIndexOf("/");
+      if (firstColon !== -1 && lastAt !== -1 && lastSlash !== -1 && firstColon < lastAt && lastAt < lastSlash) {
+        username = dbUrl2.substring(8, firstColon);
+        password = decodeURIComponent(dbUrl2.substring(firstColon + 1, lastAt));
+        const hostPort = dbUrl2.substring(lastAt + 1, lastSlash);
+        if (hostPort.includes(":")) {
+          const [h, p] = hostPort.split(":");
+          host = h || "localhost";
+          port = p || "3306";
+        } else {
+          host = hostPort || "localhost";
+        }
+        database = dbUrl2.substring(lastSlash + 1).split("?")[0];
+      }
+    } catch {
+    }
+  }
+  res.json({
+    success: true,
+    data: {
+      host,
+      port,
+      database,
+      username,
+      password,
+      rawUrl: dbUrl2
+    }
+  });
+});
 router12.post("/test", async (req, res) => {
   const { host = "localhost", port = "3306", database, username, password } = req.body;
   if (!database || !username) {

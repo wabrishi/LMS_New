@@ -5,6 +5,54 @@ import path from 'path';
 
 const router = Router();
 
+// Get current database credentials auto-parsed from .env
+router.get('/current', (_req, res) => {
+  const dbUrl = process.env.DATABASE_URL || '';
+  let host = 'localhost';
+  let port = '3306';
+  let database = '';
+  let username = '';
+  let password = '';
+
+  if (dbUrl.startsWith('mysql://')) {
+    try {
+      const firstColon = dbUrl.indexOf(':', 8);
+      const lastAt = dbUrl.lastIndexOf('@');
+      const lastSlash = dbUrl.lastIndexOf('/');
+
+      if (firstColon !== -1 && lastAt !== -1 && lastSlash !== -1 && firstColon < lastAt && lastAt < lastSlash) {
+        username = dbUrl.substring(8, firstColon);
+        password = decodeURIComponent(dbUrl.substring(firstColon + 1, lastAt));
+
+        const hostPort = dbUrl.substring(lastAt + 1, lastSlash);
+        if (hostPort.includes(':')) {
+          const [h, p] = hostPort.split(':');
+          host = h || 'localhost';
+          port = p || '3306';
+        } else {
+          host = hostPort || 'localhost';
+        }
+
+        database = dbUrl.substring(lastSlash + 1).split('?')[0];
+      }
+    } catch {
+      // Return defaults if parse fails
+    }
+  }
+
+  res.json({
+    success: true,
+    data: {
+      host,
+      port,
+      database,
+      username,
+      password,
+      rawUrl: dbUrl,
+    },
+  });
+});
+
 // Test connection with candidate credentials
 router.post('/test', async (req, res) => {
   const { host = 'localhost', port = '3306', database, username, password } = req.body;
