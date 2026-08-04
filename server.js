@@ -44,7 +44,7 @@ function sanitizeDatabaseUrl(url) {
   }
   return trimmed;
 }
-var dbUrl = sanitizeDatabaseUrl(process.env.DATABASE_URL);
+var dbUrl = process.env.DATABASE_URL;
 var prisma = new PrismaClient({
   datasources: {
     db: {

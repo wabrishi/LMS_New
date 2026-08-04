@@ -44,7 +44,7 @@ function sanitizeDatabaseUrl(url: string | undefined): string {
   return trimmed;
 }
 
-const dbUrl = sanitizeDatabaseUrl(process.env.DATABASE_URL);
+const dbUrl = process.env.DATABASE_URL;
 
 export const prisma = new PrismaClient({
   datasources: {
