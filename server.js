@@ -2,8 +2,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import path from "path";
-import fs from "fs";
+import path2 from "path";
+import fs2 from "fs";
 
 // server/config/db.ts
 import { PrismaClient } from "@prisma/client";
@@ -870,6 +870,98 @@ router11.post("/", authenticateJWT, authorizeRoles(Role9.SUPER_ADMIN, Role9.INST
 });
 var certificate_routes_default = router11;
 
+// server/routes/dbSetup.routes.ts
+import { Router as Router12 } from "express";
+import { PrismaClient as PrismaClient2 } from "@prisma/client";
+import fs from "fs";
+import path from "path";
+var router12 = Router12();
+router12.post("/test", async (req, res) => {
+  const { host = "localhost", port = "3306", database, username, password } = req.body;
+  if (!database || !username) {
+    return res.status(400).json({
+      success: false,
+      message: "Database Name and Username are required."
+    });
+  }
+  const rawPassword = password || "";
+  const encodedPassword = encodeURIComponent(rawPassword);
+  const candidateUrl = `mysql://${username}:${encodedPassword}@${host}:${port}/${database}`;
+  let testClient = null;
+  try {
+    testClient = new PrismaClient2({
+      datasources: {
+        db: { url: candidateUrl }
+      },
+      log: ["error"]
+    });
+    await testClient.$connect();
+    await testClient.$queryRaw`SELECT 1 as result`;
+    await testClient.$disconnect();
+    return res.json({
+      success: true,
+      message: "\u2705 Database Connection Successful! Credentials are 100% valid.",
+      candidateUrl
+    });
+  } catch (error) {
+    if (testClient) {
+      try {
+        await testClient.$disconnect();
+      } catch {
+      }
+    }
+    let detailedReason = error?.message || "Unknown database connection error";
+    if (detailedReason.includes("Authentication failed")) {
+      detailedReason = `Authentication failed: Invalid username '${username}' or password for MySQL database '${database}'.`;
+    } else if (detailedReason.includes("Unknown database")) {
+      detailedReason = `Database '${database}' does not exist on MySQL server at ${host}:${port}. Please create the database first in phpMyAdmin/hPanel.`;
+    } else if (detailedReason.includes("Can't connect") || detailedReason.includes("ECONNREFUSED")) {
+      detailedReason = `Could not reach MySQL server at ${host}:${port}. Check host address (try 127.0.0.1 or localhost) and port.`;
+    }
+    return res.status(400).json({
+      success: false,
+      message: "\u274C Database Connection Failed",
+      error: detailedReason
+    });
+  }
+});
+router12.post("/save", async (req, res) => {
+  const { databaseUrl } = req.body;
+  if (!databaseUrl || !databaseUrl.startsWith("mysql://")) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid MySQL database URL format."
+    });
+  }
+  try {
+    const envPath = path.join(process.cwd(), ".env");
+    let envContent = "";
+    if (fs.existsSync(envPath)) {
+      envContent = fs.readFileSync(envPath, "utf8");
+    }
+    if (envContent.includes("DATABASE_URL=")) {
+      envContent = envContent.replace(/DATABASE_URL=.*$/m, `DATABASE_URL="${databaseUrl}"`);
+    } else {
+      envContent += `
+DATABASE_URL="${databaseUrl}"
+`;
+    }
+    fs.writeFileSync(envPath, envContent, "utf8");
+    process.env.DATABASE_URL = databaseUrl;
+    return res.json({
+      success: true,
+      message: "\u{1F389} Database URL saved to .env file successfully! Database is now active."
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to write to .env file.",
+      error: error?.message || String(error)
+    });
+  }
+});
+var dbSetup_routes_default = router12;
+
 // server/index.ts
 dotenv.config();
 var app = express();
@@ -878,6 +970,7 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use("/api/v1/health", health_routes_default);
+app.use("/api/v1/db-setup", dbSetup_routes_default);
 app.use("/api/v1/auth", auth_routes_default);
 app.use("/api/v1/students", student_routes_default);
 app.use("/api/v1/faculty", faculty_routes_default);
@@ -888,14 +981,14 @@ app.use("/api/v1/assignments", assignment_routes_default);
 app.use("/api/v1/quizzes", quiz_routes_default);
 app.use("/api/v1/fees", fee_routes_default);
 app.use("/api/v1/certificates", certificate_routes_default);
-var distPath = path.join(process.cwd(), "dist");
-if (fs.existsSync(distPath)) {
+var distPath = path2.join(process.cwd(), "dist");
+if (fs2.existsSync(distPath)) {
   app.use(express.static(distPath));
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api/")) {
       return next();
     }
-    res.sendFile(path.join(distPath, "index.html"));
+    res.sendFile(path2.join(distPath, "index.html"));
   });
 } else {
   app.get("/", (_req, res) => {

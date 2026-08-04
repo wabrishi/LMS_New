@@ -17,6 +17,7 @@ import assignmentRoutes from './routes/assignment.routes';
 import quizRoutes from './routes/quiz.routes';
 import feeRoutes from './routes/fee.routes';
 import certificateRoutes from './routes/certificate.routes';
+import dbSetupRoutes from './routes/dbSetup.routes';
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Register API Routes
 app.use('/api/v1/health', healthRoutes);
+app.use('/api/v1/db-setup', dbSetupRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/faculty', facultyRoutes);

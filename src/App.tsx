@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header } from './components/common/Header';
 import { Sidebar } from './components/common/Sidebar';
 import { LoginView } from './components/auth/LoginView';
+import { DatabaseSetupView } from './components/auth/DatabaseSetupView';
 import { ShieldAlert } from 'lucide-react';
 
 // Modules
@@ -27,9 +28,24 @@ import { SettingsModuleView } from './components/modules/SettingsModule/Settings
 
 const MainLayout: React.FC = () => {
   const { activeModule, role, hasPermission, isAuthenticated } = useAuth();
+  const [isDbSetupOpen, setIsDbSetupOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      const hash = window.location.hash;
+      if (path.includes('db-setup') || hash.includes('db-setup')) {
+        setIsDbSetupOpen(true);
+      }
+    }
+  }, []);
+
+  if (isDbSetupOpen) {
+    return <DatabaseSetupView onBackToLogin={() => setIsDbSetupOpen(false)} />;
+  }
 
   if (!isAuthenticated) {
-    return <LoginView />;
+    return <LoginView onOpenDbSetup={() => setIsDbSetupOpen(true)} />;
   }
 
   const renderActiveView = () => {
