@@ -7,28 +7,14 @@ import fs from "fs";
 
 // server/config/db.ts
 import { PrismaClient } from "@prisma/client";
-function sanitizeDatabaseUrl(url) {
+function getDatabaseUrl() {
+  const url = process.env.DATABASE_URL;
   if (!url || url.includes("YOUR_HOSTINGER_DB_PASSWORD")) {
     return process.env.SQLITE_URL || "file:./dev.db";
   }
-  try {
-    if (url.startsWith("mysql://")) {
-      const firstColon = url.indexOf(":", 8);
-      const lastAt = url.lastIndexOf("@");
-      if (firstColon !== -1 && lastAt !== -1 && firstColon < lastAt) {
-        const user = url.substring(8, firstColon);
-        const rawPassword = url.substring(firstColon + 1, lastAt);
-        const rest = url.substring(lastAt + 1);
-        const cleanPassword = decodeURIComponent(rawPassword);
-        const encodedPassword = encodeURIComponent(cleanPassword);
-        return `mysql://${user}:${encodedPassword}@${rest}`;
-      }
-    }
-  } catch {
-  }
-  return url;
+  return url.trim();
 }
-var dbUrl = sanitizeDatabaseUrl(process.env.DATABASE_URL);
+var dbUrl = getDatabaseUrl();
 var prisma = new PrismaClient({
   datasources: {
     db: {
@@ -43,7 +29,7 @@ async function connectDB() {
     console.log("\u2705 MySQL Database connected successfully via Prisma Client");
     return true;
   } catch (error) {
-    console.warn("\u26A0\uFE0F Database Connection Warning:", error);
+    console.warn("\u26A0\uFE0F Database Connection Warning:", error?.message || error);
     return false;
   }
 }
