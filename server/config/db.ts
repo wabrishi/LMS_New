@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 function sanitizeDatabaseUrl(url: string | undefined): string {
   if (!url || url.includes('YOUR_HOSTINGER_DB_PASSWORD')) {
-    return process.env.SQLITE_URL || 'file:./dev.db';
+    return 'mysql://root:password@localhost:3306/online_class';
   }
 
   const trimmed = url.trim();
@@ -11,15 +11,13 @@ function sanitizeDatabaseUrl(url: string | undefined): string {
   }
 
   try {
-    // Parse using standard URL constructor
     const parsed = new URL(trimmed);
     const username = decodeURIComponent(parsed.username || '');
     let password = decodeURIComponent(parsed.password || '');
-    const host = parsed.hostname || 'localhost';
+    const host = parsed.hostname || '';
     const port = parsed.port || '3306';
     const database = decodeURIComponent(parsed.pathname ? parsed.pathname.replace(/^\//, '') : '');
 
-    // Remove accidental leading slash from password if present
     if (password.startsWith('/')) {
       password = password.slice(1);
     }
@@ -27,7 +25,6 @@ function sanitizeDatabaseUrl(url: string | undefined): string {
     const encodedPassword = encodeURIComponent(password);
     return `mysql://${username}:${encodedPassword}@${host}:${port}/${database}`;
   } catch {
-    // Regex parsing fallback if raw password caused URL syntax error
     const match = trimmed.match(/^mysql:\/\/([^:]+):([^@]+)@([^:\/]+)(?::(\d+))?\/(.+)$/);
     if (match) {
       const username = decodeURIComponent(match[1]);

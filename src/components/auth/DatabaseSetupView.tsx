@@ -58,7 +58,11 @@ export const DatabaseSetupView: React.FC<DatabaseSetupViewProps> = ({ onBackToLo
         if (json.data.port) setPort(json.data.port);
         if (json.data.database) setDatabase(json.data.database);
         if (json.data.username) setUsername(json.data.username);
-        if (json.data.password) setPassword(json.data.password);
+        if (json.data.password) {
+          // Strip any accidental leading slash from fetched password
+          const cleanPass = json.data.password.replace(/^\/+/, '');
+          setPassword(cleanPass);
+        }
       }
     } catch (err) {
       console.warn('Could not auto-fetch current .env credentials:', err);
@@ -106,12 +110,14 @@ export const DatabaseSetupView: React.FC<DatabaseSetupViewProps> = ({ onBackToLo
     setTestResult(null);
     setSaveSuccessMessage('');
 
+    const cleanPass = password.replace(/^\/+/, '');
+
     try {
       const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/db-setup/test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ host, port, database, username, password }),
+        body: JSON.stringify({ host, port, database, username, password: cleanPass }),
       });
       const data = await res.json();
 
@@ -297,7 +303,7 @@ export const DatabaseSetupView: React.FC<DatabaseSetupViewProps> = ({ onBackToLo
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter MySQL password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value.replace(/^\/+/, ''))}
                   className="w-full pl-3.5 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-blue-600 focus:bg-white transition"
                 />
                 <button

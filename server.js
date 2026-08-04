@@ -9,7 +9,7 @@ import fs2 from "fs";
 import { PrismaClient } from "@prisma/client";
 function sanitizeDatabaseUrl(url) {
   if (!url || url.includes("YOUR_HOSTINGER_DB_PASSWORD")) {
-    return process.env.SQLITE_URL || "file:./dev.db";
+    return "mysql://root:password@localhost:3306/online_class";
   }
   const trimmed = url.trim();
   if (!trimmed.startsWith("mysql://")) {
