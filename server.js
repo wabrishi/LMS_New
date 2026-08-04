@@ -7,44 +7,15 @@ import fs2 from "fs";
 
 // server/config/db.ts
 import { PrismaClient } from "@prisma/client";
-function sanitizeDatabaseUrl(url) {
-  if (!url || url.includes("YOUR_HOSTINGER_DB_PASSWORD")) {
-    return "mysql://root:password@localhost:3306/online_class";
+function getDatabaseUrl() {
+  const productionHostingerUrl = "mysql://u105632535_test:%7C8kTZW41oZ8@srv1152.hstgr.io:3306/u105632535_test";
+  const envUrl = process.env.DATABASE_URL;
+  if (envUrl && !envUrl.includes("YOUR_HOSTINGER_DB_PASSWORD")) {
+    return envUrl.trim();
   }
-  const trimmed = url.trim();
-  if (!trimmed.startsWith("mysql://")) {
-    return trimmed;
-  }
-  try {
-    const parsed = new URL(trimmed);
-    const username = decodeURIComponent(parsed.username || "");
-    let password = decodeURIComponent(parsed.password || "");
-    const host = parsed.hostname || "localhost";
-    const port = parsed.port || "3306";
-    const database = decodeURIComponent(parsed.pathname ? parsed.pathname.replace(/^\//, "") : "");
-    if (password.startsWith("/")) {
-      password = password.slice(1);
-    }
-    const encodedPassword = encodeURIComponent(password);
-    return `mysql://${username}:${encodedPassword}@${host}:${port}/${database}`;
-  } catch {
-    const match = trimmed.match(/^mysql:\/\/([^:]+):([^@]+)@([^:\/]+)(?::(\d+))?\/(.+)$/);
-    if (match) {
-      const username = decodeURIComponent(match[1]);
-      let password = decodeURIComponent(match[2]);
-      if (password.startsWith("/")) {
-        password = password.slice(1);
-      }
-      const host = match[3];
-      const port = match[4] || "3306";
-      const database = match[5].split("?")[0];
-      const encodedPassword = encodeURIComponent(password);
-      return `mysql://${username}:${encodedPassword}@${host}:${port}/${database}`;
-    }
-  }
-  return trimmed;
+  return productionHostingerUrl;
 }
-var dbUrl = process.env.DATABASE_URL;
+var dbUrl = getDatabaseUrl();
 var prisma = new PrismaClient({
   datasources: {
     db: {
